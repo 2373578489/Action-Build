@@ -735,12 +735,21 @@ jobs:
 
       - name: Restore arch.h (SukiSU sync removed it)
         run: |
-          cd kernel_workspace/kernel_platform/KernelSU
-          if [[ ! -f kernel/include/arch.h ]]; then
+           cd kernel_workspace/kernel_platform/KernelSU
+           #1) arch.h removed by upstream sync -> restore from official KernelSU main
+           if [[ ! -f kernel/include/arch.h ]]; then
             curl -LSs -o kernel/include/arch.h \
               "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/include/arch.h"
-            echo "Restored kernel/include/arch.h from official KernelSU main"
-          fi
+            echo "Restored kernel/include/arch.h"
+           fi
+           #2) EVENT_SERVICES removed from uapi enum -> restore (=4)
+           if ! grep -q "EVENT_SERVICES" kernel/include/uapi/supercall.h; then
+            sed -i '/DECLARE(__u32, EVENT_MODULE_MOUNTED, 3);/a DECLARE(__u32, EVENT_SERVICES, 4);' kernel/include/uapi/supercall.h
+            echo "Patched EVENT_SERVICES"
+           fi
+           #3) duplicate pol/old_pol declaration in rules.c -> remove
+           sed -i '/struct selinux_policy \*pol, \*old_pol = selinux_state.policy;/d' kernel/selinux/rules.c
+           echo "Patched rules.c duplicate declaration"
 
       - name: Apply Fake Patches
         if: ${{ github.event.inputs.SUSFS_META != '-1' }}
