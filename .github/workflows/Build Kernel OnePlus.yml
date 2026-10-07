@@ -496,6 +496,13 @@ jobs:
             sed -i 's/check_defconfig = None,/check_defconfig = "disabled",/' kernel_platform/build/kernel/kleaf/common_kernels.bzl
             sed -i 's/if check_defconfig == None:/if False:  # check_defconfig == None:/' kernel_platform/build/kernel/kleaf/common_kernels.bzl
           fi
+          
+      - name: Pin common to 6.6.89 (16.0.2.403 sync, fix flicker)
+        run: |
+          cd kernel_workspace/kernel_platform/common
+          git fetch --depth=1 origin 90bc9cf406bf7cbc974132abfb633afab0f5bde0
+          git checkout FETCH_HEAD
+          echo "已钉到: $(git log -1 --oneline) | SUBLEVEL=$(grep -m1 '^SUBLEVEL' Makefile)"
 
       - name: Kernel Version Handling
         run: |
