@@ -733,6 +733,15 @@ jobs:
           grep -nE '^(REPO_OWNER|REPO_NAME|REPO_BRANCH|KSU_VERSION_API|KSU_VERSION_FULL|VERSION_TAG|GIT_BIN|CURL_BIN)' kernel/Makefile
           echo "::endgroup::"
 
+      - name: Restore arch.h (SukiSU sync removed it)
+        run: |
+          cd kernel_workspace/kernel_platform/KernelSU
+          if [[ ! -f kernel/include/arch.h ]]; then
+            curl -LSs -o kernel/include/arch.h \
+              "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/include/arch.h"
+            echo "Restored kernel/include/arch.h from official KernelSU main"
+          fi
+
       - name: Apply Fake Patches
         if: ${{ github.event.inputs.SUSFS_META != '-1' }}
         run: |
