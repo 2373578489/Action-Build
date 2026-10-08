@@ -499,10 +499,27 @@ jobs:
           
       - name: Pin common to 6.6.89 (16.0.2.403 sync, fix flicker)
         run: |
-          cd kernel_workspace/kernel_platform/common
+          cd "$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common"
           git fetch --depth=1 origin 90bc9cf406bf7cbc974132abfb633afab0f5bde0
-          git checkout FETCH_HEAD
+          git checkout -f FETCH_HEAD
+          # 重新应用 Numbersf 初始化步骤的 ABI 保护移除（checkout -f 会覆盖工作树改动，必须重做）
+          cd "$GITHUB_WORKSPACE/kernel_workspace"
+          for dir in kernel_platform/common kernel_platform/msm-kernel; do
+            if [ -e "$dir/BUILD.bazel" ]; then
+              sed -i '/^[[:space:]]*"protected_exports_list"[[:space:]]*:[[:space:]]*"android\/abi_gki_protected_exports_aarch64",$/d' "$dir/BUILD.bazel"
+            fi
+            rm -f "$dir/android/abi_gki_protected_exports_"* 2>/dev/null || echo "No protected exports in $dir"
+          done
+          if grep -q 'check_defconfig' kernel_platform/common/build.config.gki; then
+            sed -i 's/check_defconfig//' kernel_platform/common/build.config.gki
+          fi
+          if grep -q 'check_defconfig = None,' kernel_platform/build/kernel/kleaf/common_kernels.bzl; then
+            sed -i 's/check_defconfig = None,/check_defconfig = "disabled",/' kernel_platform/build/kernel/kleaf/common_kernels.bzl
+            sed -i 's/if check_defconfig == None:/if False:  # check_defconfig == None:/' kernel_platform/build/kernel/kleaf/common_kernels.bzl
+          fi
+          cd kernel_platform/common
           echo "已钉到: $(git log -1 --oneline) | SUBLEVEL=$(grep -m1 '^SUBLEVEL' Makefile)"
+
 
       - name: Kernel Version Handling
         run: |
