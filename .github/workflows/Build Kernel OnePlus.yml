@@ -780,7 +780,25 @@ jobs:
           cd kernel_workspace/kernel_platform/KernelSU
           sed -i 's/DECLARE(__u32, KERNEL_SU_UAPI_VERSION, 2);/DECLARE(__u32, KERNEL_SU_UAPI_VERSION, 5);/' kernel/include/uapi/supercall.h
           grep -m1 "KERNEL_SU_UAPI_VERSION" kernel/include/uapi/supercall.h
-     
+
+      - name: Spoof kernel version to stock (6.6.66)
+        run: |
+          cd kernel_workspace/kernel_platform/common
+          # 1) SUBLEVEL 89 -> 66（只改版本号，内核代码仍是 6.6.89）
+          sed -i 's/SUBLEVEL\s*= 89/SUBLEVEL = 66/' Makefile
+          grep -m1 '^SUBLEVEL' Makefile
+          # 2) LOCALVERSION 伪装成原厂后缀
+          sed -i '/^CONFIG_LOCALVERSION=/d' arch/arm64/configs/*.config 2>/dev/null || true
+          # 写入 defconfig（追加 LOCALVERSION）
+          for cfg in arch/arm64/configs/*.config; do
+          echo 'CONFIG_LOCALVERSION="-android15-8-g29d86c5fc9dd-abogki428889875-4k"' >> "$cfg"
+          done
+          # 3) 构建用户/主机/时间戳伪装成原厂
+          echo "KBUILD_BUILD_USER=kleaf" >> $GITHUB_ENV
+          echo "KBUILD_BUILD_HOST=build-host" >> $GITHUB_ENV
+          echo "KBUILD_BUILD_TIMESTAMP='Tue Jul  1 19:48:18 UTC 2025'" >> $GITHUB_ENV
+          echo "已伪装: 6.6.66-android15-8-g29d86c5fc9dd-abogki428889875-4k"
+
       - name: Apply Fake Patches
         if: ${{ github.event.inputs.SUSFS_META != '-1' }}
         run: |
