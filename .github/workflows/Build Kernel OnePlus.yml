@@ -775,6 +775,12 @@ jobs:
            sed -i '/struct selinux_policy \*pol, \*old_pol = selinux_state.policy;/d' kernel/selinux/rules.c
            echo "Patched rules.c duplicate declaration"
 
+      - name: Bump UAPI to 5 (match manager v4.2.0)
+        run: |
+          cd kernel_workspace/kernel_platform/KernelSU
+          sed -i 's/DECLARE(__u32, KERNEL_SU_UAPI_VERSION, 2);/DECLARE(__u32, KERNEL_SU_UAPI_VERSION, 5);/' kernel/include/uapi/supercall.h
+          grep -m1 "KERNEL_SU_UAPI_VERSION" kernel/include/uapi/supercall.h
+     
       - name: Apply Fake Patches
         if: ${{ github.event.inputs.SUSFS_META != '-1' }}
         run: |
