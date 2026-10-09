@@ -781,22 +781,32 @@ jobs:
           sed -i 's/DECLARE(__u32, KERNEL_SU_UAPI_VERSION, 2);/DECLARE(__u32, KERNEL_SU_UAPI_VERSION, 5);/' kernel/include/uapi/supercall.h
           grep -m1 "KERNEL_SU_UAPI_VERSION" kernel/include/uapi/supercall.h
 
-      - name: Spoof kernel version to stock (6.6.66) v2
+      - name: Spoof kernel version to stock (6.6.66) v3
         run: |
-         cd kernel_workspace/kernel_platform/common
-         # 1) SUBLEVEL 89 -> 66
-         sed -i 's/SUBLEVEL\s*= 89/SUBLEVEL = 66/' Makefile
-         grep -m1 '^SUBLEVEL' Makefile
-         # 2) LOCALVERSION 写入正确的 gki_defconfig + 禁用 git 尾巴
-         sed -i '/^CONFIG_LOCALVERSION=/d' arch/arm64/configs/gki_defconfig
-         echo 'CONFIG_LOCALVERSION="-android15-8-g29d86c5fc9dd-abogki428889875-4k"' >> arch/arm64/configs/gki_defconfig
-         echo 'CONFIG_LOCALVERSION_AUTO=n' >> arch/arm64/configs/gki_defconfig
-         grep -E '^CONFIG_LOCALVERSION' arch/arm64/configs/gki_defconfig
-         # 3) 时间/用户/主机 强制写入 Makefile（覆盖 ccache 固定值）
-         echo 'KBUILD_BUILD_TIMESTAMP := Tue Jul  1 19:48:18 UTC 2025' >> Makefile
-         echo 'KBUILD_BUILD_USER := kleaf' >> Makefile
-         echo 'KBUILD_BUILD_HOST := build-host' >> Makefile
-         echo "已伪装: 6.6.66-android15-8-g29d86c5fc9dd-abogki428889875-4k @ kleaf@build-host @ 2025-07-01"
+          cd kernel_workspace/kernel_platform/common
+          # 1) SUBLEVEL 89 -> 66
+          sed -i 's/SUBLEVEL\s*= 89/SUBLEVEL = 66/' Makefile
+          # 2) LOCALVERSION 伪装 + 禁用 git 尾巴
+          sed -i '/^CONFIG_LOCALVERSION=/d' arch/arm64/configs/gki_defconfig
+          echo 'CONFIG_LOCALVERSION="-android15-8-g29d86c5fc9dd-abogki428889875-4k"' >> arch/arm64/configs/gki_defconfig
+          echo 'CONFIG_LOCALVERSION_AUTO=n' >> arch/arm64/configs/gki_defconfig
+          # 3) 时间/用户/主机 强制写入 Makefile
+          echo 'KBUILD_BUILD_TIMESTAMP := Tue Jul  1 19:48:18 UTC 2025' >> Makefile
+          echo 'KBUILD_BUILD_USER := kleaf' >> Makefile
+          echo 'KBUILD_BUILD_HOST := build-host' >> Makefile
+          # 4) 彻底禁用 setlocalversion 的 scm 输出（消除 dirty 的 + 标记）
+          python3 - <<'PYEOF'
+          p = 'scripts/setlocalversion'
+          s = open(p, encoding='utf-8', errors='replace').read()
+          import re
+          s2 = re.sub(r'res="\$res\$\(scm_version\)"', 'res="$res"', s)
+          s2 = re.sub(r'res="\$res\$\{scm_version\}"', 'res="$res"', s2)
+          open(p, 'w', encoding='utf-8').write(s2)
+          print('scm disabled:', s != s2)
+          PYEOF
+          grep -m1 '^SUBLEVEL' Makefile
+          grep -E '^CONFIG_LOCALVERSION' arch/arm64/configs/gki_defconfig
+          echo "已伪装: 6.6.66-android15-8-g29d86c5fc9dd-abogki428889875-4k @ kleaf@build-host @ 2025-07-01"
 
       - name: Apply Fake Patches
         if: ${{ github.event.inputs.SUSFS_META != '-1' }}
